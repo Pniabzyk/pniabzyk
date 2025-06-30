@@ -91,8 +91,9 @@ def wfp_webhook():
                 return 'OK'
             link = DROPBOX_LINKS.get(issue)
             if link:
-                BOT.send_message(chat_id, f"Дякуємо за оплату! Ось ваше посилання:
+                                BOT.send_message(chat_id, f"Дякуємо за оплату! Ось ваше посилання:
 {link}")
+
     return 'OK'
 @app.route('/webhook', methods=['POST'])
 def wfp_webhook():
