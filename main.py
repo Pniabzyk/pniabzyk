@@ -38,24 +38,22 @@ def create_invoice(chat_id, issue_id):
         "orderDate": int(time.time()),
         "amount": "50",
         "currency": "UAH",
-        "productName": f"Пнябзик №{issue_id[-1]} (PDF)",
-        "productCount": "1",
-        "productPrice": "50",
+        "productName": [f"Пнябзик №{issue_id[-1]} (PDF)"],
+        "productCount": [1],
+        "productPrice": [50],
         "clientFirstName": "User",
         "clientLastName": "Telegram",
         "clientEmail": f"user{chat_id}@bot.fake",
         "returnUrl": "https://example.com/thankyou",
         "serviceUrl": "https://pniabzyk.onrender.com/webhook"
     }
-
-    # Генерація підпису
     invoice["merchantSignature"] = generate_signature(invoice, WFP_SECRET)
 
-    # Генерація URL (без json.dumps)
+    # Перетворення в URL
     pay_url = WFP_URL + "?" + '&'.join([
-        f"{k}={v}" for k, v in invoice.items()
+        f"{k}={json.dumps(v, ensure_ascii=False) if isinstance(v, list) else v}"
+        for k, v in invoice.items()
     ])
-
     return pay_url
 
 # Telegram webhook
