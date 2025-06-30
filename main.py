@@ -10,12 +10,16 @@ from urllib.parse import urlencode
 
 app = Flask(__name__)
 
-# Конфігурація
-TELEGRAM_TOKEN = '7971113554:AAEHlyaoqnKDT7pLSCKjpKi4pYDfrwy7S7E'
-WFP_MERCHANT = 'forms_gle7'
-WFP_SECRET = '7921e3bad21153d0e467066b5285511d390a16d4'
-WFP_URL = 'https://secure.wayforpay.com/pay'
+# Конфігурація бота та посилань
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', '7971113554:AAEHlyaoqnKDT7pLSCKjpKi4pYDfrwy7S7E')
 BOT = telegram.Bot(token=TELEGRAM_TOKEN)
+
+# Статичні кнопки Wayforpay
+WFP_BUTTON_LINKS = {
+    'issue1': 'https://secure.wayforpay.com/button/b56513f8db1e1',
+    'issue2': 'https://secure.wayforpay.com/button/bbed55197b5f4',
+    'issue3': 'https://secure.wayforpay.com/button/b91af44205f4f'
+}
 
 # Dropbox-посилання після оплати
 DROPBOX_LINKS = {
@@ -24,43 +28,7 @@ DROPBOX_LINKS = {
     'issue3': 'https://www.dropbox.com/scl/fi/hpg0gf9lh207hiw1uw50x/3-09.04.pdf?rlkey=d6s3iiup02aye3xul8898lg3c&st=ute9v9tz&dl=0'
 }
 
-# Генерація підпису для Wayforpay
-def generate_signature(data, secret):
-    keys = ['merchantAccount','orderReference','orderDate','amount','currency','productName','productCount','productPrice']
-    signature_str = ';'.join(str(data[k]) for k in keys)
-    return hashlib.sha1((signature_str + secret).encode('utf-8')).hexdigest()
-
-# Платіжне посилання Wayforpay формується тут
-def create_invoice(chat_id, issue_id):
-    order_ref = f"pnzbz_{issue_id}_{chat_id}"
-    data = {
-        'merchantAccount': WFP_MERCHANT,
-        'merchantDomainName': 'pniabzyk.onrender.com',
-        'orderReference': order_ref,
-        'orderDate': int(time.time()),
-        'amount': 50,
-        'currency': 'UAH',
-        'productName': f"Пнябзик №{issue_id[-1]} (PDF)",
-        'productCount': 1,
-        'productPrice': 50,
-        'serviceUrl': 'https://pniabzyk.onrender.com/webhook',
-        'returnUrl': 'https://pniabzyk.onrender.com/thankyou'
-    }
-    data['merchantSignature'] = generate_signature(data, WFP_SECRET)
-    # Формуємо URL-кодований рядок запиту
-    query_string = urlencode(data, safe=':/')
-    return f"{WFP_URL}?{query_string}"
-
-# Допоміжна функція: відправити кнопку оплати: відправити кнопку оплати
-# Статичні кнопки Wayforpay, якщо хочете використовувати готові посилання
-WFP_BUTTON_LINKS = {
-    'issue1': 'https://secure.wayforpay.com/button/b56513f8db1e1',
-    'issue2': 'https://secure.wayforpay.com/button/bbed55197b5f4',
-    'issue3': 'https://secure.wayforpay.com/button/b91af44205f4f'
-}
-
 # Допоміжна функція: відправити кнопку оплати
-# Використовуємо статичні WFP_BUTTON_LINKS замість генерації через API
 
 def send_payment_button(chat_id, issue_number):
     link = WFP_BUTTON_LINKS.get(f'issue{issue_number}')
@@ -101,13 +69,23 @@ def telegram_webhook():
 # Wayforpay Webhook: обробка підтверджень оплат
 @app.route('/webhook', methods=['POST'])
 def wfp_webhook():
-    data = request.get_json()
+    # Wayforpay може надсилати form-data або JSON
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = {
+            'transactionStatus': request.form.get('transactionStatus'),
+            'orderReference': request.form.get('orderReference')
+        }
     if data.get('transactionStatus') == 'Approved':
         ref = data.get('orderReference', '')
         parts = ref.split('_')
         if len(parts) == 3 and parts[0] == 'pnzbz':
             issue = parts[1]
-            chat_id = int(parts[2])
+            try:
+                chat_id = int(parts[2])
+            except ValueError:
+                return 'OK'
             link = DROPBOX_LINKS.get(issue)
             if link:
                 BOT.send_message(chat_id, f"Дякуємо за оплату! Ось ваше посилання:\n{link}")
