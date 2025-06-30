@@ -6,6 +6,7 @@ from flask import Flask, request
 import telegram
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 import os
+from urllib.parse import urlencode
 
 app = Flask(__name__)
 
@@ -30,7 +31,7 @@ def generate_signature(data, secret):
     return hashlib.sha1((signature_str + secret).encode('utf-8')).hexdigest()
 
 # Платіжне посилання Wayforpay формується тут
-def create_invoice(chat_id, issue_id):(chat_id, issue_id):
+def create_invoice(chat_id, issue_id):
     order_ref = f"pnzbz_{issue_id}_{chat_id}"
     data = {
         'merchantAccount': WFP_MERCHANT,
@@ -51,8 +52,18 @@ def create_invoice(chat_id, issue_id):(chat_id, issue_id):
     return f"{WFP_URL}?{query_string}"
 
 # Допоміжна функція: відправити кнопку оплати: відправити кнопку оплати
+# Статичні кнопки Wayforpay, якщо хочете використовувати готові посилання
+WFP_BUTTON_LINKS = {
+    'issue1': 'https://secure.wayforpay.com/button/b56513f8db1e1',
+    'issue2': 'https://secure.wayforpay.com/button/bbed55197b5f4',
+    'issue3': 'https://secure.wayforpay.com/button/b91af44205f4f'
+}
+
+# Допоміжна функція: відправити кнопку оплати
+# Використовуємо статичні WFP_BUTTON_LINKS замість генерації через API
+
 def send_payment_button(chat_id, issue_number):
-    link = create_invoice(chat_id, f'issue{issue_number}')
+    link = WFP_BUTTON_LINKS.get(f'issue{issue_number}')
     BOT.send_message(
         chat_id,
         f"Оплатіть випуск №{issue_number}:",
