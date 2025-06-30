@@ -23,8 +23,12 @@ DROPBOX_LINKS = {
 
 # Генерація підпису для Wayforpay
 def generate_signature(data, secret):
-    keys = sorted(data)
-    signature_str = ';'.join([str(data[k]) for k in keys])
+    keys = [
+        'merchantAccount', 'orderReference', 'orderDate',
+        'amount', 'currency',
+        'productName', 'productCount', 'productPrice'
+    ]
+    signature_str = ';'.join(str(data[k]) for k in keys)
     return hashlib.sha1((signature_str + secret).encode('utf-8')).hexdigest()
 
 # Генерація посилання на оплату
@@ -36,24 +40,27 @@ def create_invoice(chat_id, issue_id):
         "orderReference": order_ref,
         "merchantAccount": WFP_MERCHANT,
         "orderDate": int(time.time()),
-        "amount": "50",
+        "amount": 50,
         "currency": "UAH",
-        "productName": [f"Пнябзик №{issue_id[-1]} (PDF)"],
-        "productCount": [1],
-        "productPrice": [50],
+        "productName": f"Пнябзик №{issue_id[-1]} (PDF)",
+        "productCount": 1,
+        "productPrice": 50,
         "clientFirstName": "User",
         "clientLastName": "Telegram",
         "clientEmail": f"user{chat_id}@bot.fake",
         "returnUrl": "https://example.com/thankyou",
         "serviceUrl": "https://pniabzyk.onrender.com/webhook"
     }
+
+    # Генеруємо підпис
     invoice["merchantSignature"] = generate_signature(invoice, WFP_SECRET)
 
-    # Перетворення в URL
-    pay_url = WFP_URL + "?" + '&'.join([
-        f"{k}={json.dumps(v, ensure_ascii=False) if isinstance(v, list) else v}"
+    # Формуємо рядок посилання
+    pay_url = WFP_URL + '?' + '&'.join(
+        f"{k}={requests.utils.quote(str(v))}"
         for k, v in invoice.items()
-    ])
+    )
+
     return pay_url
 
 # Telegram webhook
