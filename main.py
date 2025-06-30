@@ -28,12 +28,14 @@ def generate_signature(data, secret):
     return hashlib.sha1((signature_str + secret).encode('utf-8')).hexdigest()
 
 # Генерація посилання на оплату
+import time
+
 def create_invoice(chat_id, issue_id):
     order_ref = f"pnzbz_{issue_id}_{chat_id}"
     invoice = {
         "orderReference": order_ref,
         "merchantAccount": WFP_MERCHANT,
-        "orderDate": int(requests.get('https://showcase.api.linx.twenty57.net/UnixTime/tounixtimestamp?date=now').json()),
+        "orderDate": int(time.time()),
         "amount": "50",
         "currency": "UAH",
         "productName": [f"Пнябзик №{issue_id[-1]} (PDF)"],
@@ -43,7 +45,7 @@ def create_invoice(chat_id, issue_id):
         "clientLastName": "Telegram",
         "clientEmail": f"user{chat_id}@bot.fake",
         "returnUrl": "https://example.com/thankyou",
-        "serviceUrl": "https://YOUR_RENDER_URL/webhook"
+        "serviceUrl": "https://pniabzyk.onrender.com/webhook"
     }
     invoice["merchantSignature"] = generate_signature(invoice, WFP_SECRET)
     pay_url = WFP_URL + "?" + '&'.join([f"{k}={json.dumps(v) if isinstance(v, list) else v}" for k, v in invoice.items()])
