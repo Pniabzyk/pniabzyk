@@ -32,7 +32,7 @@ def generate_signature(data, secret):
 # Статичні кнопки Wayforpay для випусків
 WFP_BUTTON_LINKS = {
     'issue1': 'https://secure.wayforpay.com/button/b56513f8db1e1',
-    'issue2': 'https://secure.wayforpay.com/button/b56513f8db1e1',
+    'issue2': 'https://secure.wayforpay.com/button/bbed55197b5f4',
     'issue3': 'https://secure.wayforpay.com/button/b91af44205f4f'
 }
 
@@ -72,7 +72,7 @@ def telegram_webhook():
     elif text == '📘 Пнябзик №3':
         send_payment_button(chat_id, 3)
 
-    return 'ok' оплати
+    return 'ok' 
 def send_payment_button(chat_id, issue_number, link):
     BOT.send_message(
         chat_id,
