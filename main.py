@@ -8,7 +8,7 @@ import os
 app = Flask(__name__)
 
 # Конфігурація (вставлено напряму)
-TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
+TELEGRAM_TOKEN = 7971113554:AAEHlyaoqnKDT7pLSCKjpKi4pYDfrwy7S7E
 WFP_MERCHANT = 'forms_gle7'
 WFP_SECRET = '7921e3bad21153d0e467066b5285511d390a16d4'
 WFP_URL = 'https://secure.wayforpay.com/pay'
