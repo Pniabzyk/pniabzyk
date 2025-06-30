@@ -93,37 +93,3 @@ def wfp_webhook():
             if link:
                                 BOT.send_message(chat_id, f"Дякуємо за оплату! Ось ваше посилання:
 {link}")
-
-    return 'OK'
-@app.route('/webhook', methods=['POST'])
-def wfp_webhook():
-    # Логування вхідних даних для перевірки
-    app.logger.info(f"Raw webhook payload: {request.get_data()}")
-    app.logger.info(f"Form data: {request.form}")
-    # Wayforpay може надсилати form-data або JSON
-    # Wayforpay може надсилати form-data або JSON
-    if request.is_json:
-        data = request.get_json()
-    else:
-        data = {
-            'transactionStatus': request.form.get('transactionStatus'),
-            'orderReference': request.form.get('orderReference')
-        }
-    if data.get('transactionStatus') == 'Approved':
-        ref = data.get('orderReference', '')
-        parts = ref.split('_')
-        if len(parts) == 3 and parts[0] == 'pnzbz':
-            issue = parts[1]
-            try:
-                chat_id = int(parts[2])
-            except ValueError:
-                return 'OK'
-            link = DROPBOX_LINKS.get(issue)
-            if link:
-                BOT.send_message(chat_id, f"Дякуємо за оплату! Ось ваше посилання:\n{link}")
-    return 'OK'
-
-# Запуск Flask-сервера
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
