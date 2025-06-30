@@ -29,31 +29,50 @@ def generate_signature(data, secret):
     signature_str = ';'.join(str(data[k]) for k in keys)
     return hashlib.sha1((signature_str + secret).encode('utf-8')).hexdigest()
 
-# Генерація посилання на оплату
-def create_invoice(chat_id, issue_id):
-    order_ref = f"pnzbz_{issue_id}_{chat_id}"
-    invoice = {
-        'orderReference': order_ref,
-        'merchantAccount': WFP_MERCHANT,
-        'orderDate': int(time.time()),
-        'amount': 50,
-        'currency': 'UAH',
-        'productName': f"Пнябзик №{issue_id[-1]} (PDF)",
-        'productCount': 1,
-        'productPrice': 50,
-        'clientFirstName': 'User',
-        'clientLastName': 'Telegram',
-        'clientEmail': f'user{chat_id}@bot.fake',
-        'returnUrl': 'https://example.com/thankyou',
-        'serviceUrl': 'https://pniabzyk.onrender.com/webhook'
-    }
-    invoice['merchantSignature'] = generate_signature(invoice, WFP_SECRET)
-    pay_url = WFP_URL + '?' + '&'.join(
-        f"{k}={requests.utils.quote(str(v))}" for k, v in invoice.items()
-    )
-    return pay_url
+# Статичні кнопки Wayforpay для випусків
+WFP_BUTTON_LINKS = {
+    'issue1': 'https://secure.wayforpay.com/button/b56513f8db1e1',
+    'issue2': 'https://secure.wayforpay.com/button/b56513f8db1e1',
+    'issue3': 'https://secure.wayforpay.com/button/b91af44205f4f'
+}
 
 # Відправка кнопки оплати
+def send_payment_button(chat_id, issue_number):
+    link = WFP_BUTTON_LINKS[f'issue{issue_number}']
+    BOT.send_message(
+        chat_id,
+        f"Оплатіть випуск №{issue_number}:",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(f"💳 Оплатити 50 грн — №{issue_number}", url=link)
+        ]])
+    )
+
+# Telegram webhook
+@app.route('/telegram', methods=['POST'])
+def telegram_webhook():
+    update = telegram.Update.de_json(request.get_json(force=True), BOT)
+    if not update.message or not update.message.text:
+        return 'ok'
+    chat_id = update.message.chat_id
+    text = update.message.text
+
+    if text == '/start':
+        BOT.send_message(
+            chat_id,
+            'Привіт! Оберіть випуск, який хочете купити:',
+            reply_markup=telegram.ReplyKeyboardMarkup(
+                [['📘 Пнябзик №1','📘 Пнябзик №2','📘 Пнябзик №3']],
+                one_time_keyboard=True
+            )
+        )
+    elif text == '📘 Пнябзик №1':
+        send_payment_button(chat_id, 1)
+    elif text == '📘 Пнябзик №2':
+        send_payment_button(chat_id, 2)
+    elif text == '📘 Пнябзик №3':
+        send_payment_button(chat_id, 3)
+
+    return 'ok' оплати
 def send_payment_button(chat_id, issue_number, link):
     BOT.send_message(
         chat_id,
