@@ -1,13 +1,15 @@
 import hashlib
 import json
 import requests
+import time
 from flask import Flask, request
 import telegram
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 import os
 
 app = Flask(__name__)
 
-# Конфігурація (вставлено напряму)
+# Конфігурація
 TELEGRAM_TOKEN = '7971113554:AAEHlyaoqnKDT7pLSCKjpKi4pYDfrwy7S7E'
 WFP_MERCHANT = 'forms_gle7'
 WFP_SECRET = '7921e3bad21153d0e467066b5285511d390a16d4'
@@ -23,66 +25,71 @@ DROPBOX_LINKS = {
 
 # Генерація підпису для Wayforpay
 def generate_signature(data, secret):
-    keys = [
-        'merchantAccount', 'orderReference', 'orderDate',
-        'amount', 'currency',
-        'productName', 'productCount', 'productPrice'
-    ]
+    keys = ['merchantAccount','orderReference','orderDate','amount','currency','productName','productCount','productPrice']
     signature_str = ';'.join(str(data[k]) for k in keys)
     return hashlib.sha1((signature_str + secret).encode('utf-8')).hexdigest()
 
 # Генерація посилання на оплату
-import time
-
 def create_invoice(chat_id, issue_id):
     order_ref = f"pnzbz_{issue_id}_{chat_id}"
     invoice = {
-        "orderReference": order_ref,
-        "merchantAccount": WFP_MERCHANT,
-        "orderDate": int(time.time()),
-        "amount": 50,
-        "currency": "UAH",
-        "productName": f"Пнябзик №{issue_id[-1]} (PDF)",
-        "productCount": 1,
-        "productPrice": 50,
-        "clientFirstName": "User",
-        "clientLastName": "Telegram",
-        "clientEmail": f"user{chat_id}@bot.fake",
-        "returnUrl": "https://example.com/thankyou",
-        "serviceUrl": "https://pniabzyk.onrender.com/webhook"
+        'orderReference': order_ref,
+        'merchantAccount': WFP_MERCHANT,
+        'orderDate': int(time.time()),
+        'amount': 50,
+        'currency': 'UAH',
+        'productName': f"Пнябзик №{issue_id[-1]} (PDF)",
+        'productCount': 1,
+        'productPrice': 50,
+        'clientFirstName': 'User',
+        'clientLastName': 'Telegram',
+        'clientEmail': f'user{chat_id}@bot.fake',
+        'returnUrl': 'https://example.com/thankyou',
+        'serviceUrl': 'https://pniabzyk.onrender.com/webhook'
     }
-
-    # Генеруємо підпис
-    invoice["merchantSignature"] = generate_signature(invoice, WFP_SECRET)
-
-    # Формуємо рядок посилання
+    invoice['merchantSignature'] = generate_signature(invoice, WFP_SECRET)
     pay_url = WFP_URL + '?' + '&'.join(
-        f"{k}={requests.utils.quote(str(v))}"
-        for k, v in invoice.items()
+        f"{k}={requests.utils.quote(str(v))}" for k, v in invoice.items()
     )
-
     return pay_url
+
+# Відправка кнопки оплати
+def send_payment_button(chat_id, issue_number, link):
+    BOT.send_message(
+        chat_id,
+        f"Оплатіть випуск №{issue_number}:",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(f"💳 Оплатити 50 грн — №{issue_number}", url=link)
+        ]])
+    )
 
 # Telegram webhook
 @app.route('/telegram', methods=['POST'])
 def telegram_webhook():
     update = telegram.Update.de_json(request.get_json(force=True), BOT)
+    if not update.message or not update.message.text:
+        return 'ok'
     chat_id = update.message.chat_id
-    message = update.message.text
+    text = update.message.text
 
-    if message == '/start':
-        BOT.send_message(chat_id, "Привіт! Оберіть випуск, який хочете купити:", reply_markup=telegram.ReplyKeyboardMarkup(
-            [["📘 Пнябзик №1", "📘 Пнябзик №2", "📘 Пнябзик №3"]], one_time_keyboard=True))
-
-    elif message == '📘 Пнябзик №1':
+    if text == '/start':
+        BOT.send_message(
+            chat_id,
+            'Привіт! Оберіть випуск, який хочете купити:',
+            reply_markup=telegram.ReplyKeyboardMarkup(
+                [['📘 Пнябзик №1','📘 Пнябзик №2','📘 Пнябзик №3']],
+                one_time_keyboard=True
+            )
+        )
+    elif text == '📘 Пнябзик №1':
         link = create_invoice(chat_id, 'issue1')
-        BOT.send_message(chat_id, f"Оплатіть випуск №1 за посиланням:\n{link}")
-    elif message == '📘 Пнябзик №2':
+        send_payment_button(chat_id, 1, link)
+    elif text == '📘 Пнябзик №2':
         link = create_invoice(chat_id, 'issue2')
-        BOT.send_message(chat_id, f"Оплатіть випуск №2 за посиланням:\n{link}")
-    elif message == '📘 Пнябзик №3':
+        send_payment_button(chat_id, 2, link)
+    elif text == '📘 Пнябзик №3':
         link = create_invoice(chat_id, 'issue3')
-        BOT.send_message(chat_id, f"Оплатіть випуск №3 за посиланням:\n{link}")
+        send_payment_button(chat_id, 3, link)
 
     return 'ok'
 
@@ -101,10 +108,11 @@ def wfp_webhook():
                 BOT.send_message(chat_id, f"Дякуємо за оплату! Ось ваше посилання:\n{link}")
     return 'OK'
 
+# Запуск сервера
 @app.route('/', methods=['GET'])
 def index():
     return 'PniabzykBot is running.'
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
